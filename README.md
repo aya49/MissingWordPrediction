@@ -1,4 +1,4 @@
-# MissingWordPrediction-project
+# Missing Word Prediction (Using Nearest Neighbour)
 
 + Input: matrix of articles with random words deleted and collaboration information
 + Output: Predicts what words were most likelly deleted from each article
