@@ -10,10 +10,10 @@ source("IG.R")
 
 #Data preparation---------------------------------------------------
 
-docMetaO <- as.data.frame(read.csv("Collaboration.csv")) #every article is created in a group of 4, Collaborators.csv tells us who have worked together before
+docMetaO <- as.data.frame(read.csv("data/Collaboration.csv")) #every article is created in a group of 4, Collaborators.csv tells us who have worked together before
 docMeta <- NULL
 
-doc <- strsplit(scan("DocumentWords.csv", what="", sep="\n"), split=",")
+doc <- strsplit(scan("data/DocumentWords.csv", what="", sep="\n"), split=",")
 for(i in 1:length(doc)) {
   docMeta$docID[i] <- as.numeric(doc[[i]][1])
   docMeta$length[i] <- as.numeric(doc[[i]][2])
@@ -51,7 +51,7 @@ for(i in 1:length(people$sID)) {
 }
 
 #create list of words
-wordO <- read.csv("Vocabulary.csv", sep="\n")
+wordO <- read.csv("data/Vocabulary.csv", sep="\n")
 words <- data.frame(matrix(0, ncol=9, nrow=length(wordO[[1]])))
 colnames(words) <- c("order", "words", "count", "IG", "kmeans1", "kmeans2", "kmeans3", "kmeans4", "recno")
 words$words <- wordO[[1]]
