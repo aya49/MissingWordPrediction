@@ -3,17 +3,41 @@
 # Input: matrix of articles with random words deleted and collaboration information
 # Output: Predicts what words were most likelly deleted from each article
 
+root = "home/project_wd"
+setwd(root)
+dir.create(file.path(root, "result"), showWarnings = FALSE)
+
 #install.packages("arules")
 #install.packages("Matrix")
 library(arules)
+library(recommenderlab)
 source("IG.R")
+
+#Data directories
+input_collab_dir = "data/Collaboration.csv"
+input_words_dir = "data/DocumentWords.csv"
+input_vocab_dir = "data/Vocabulary.csv"
+result_final_dir = "result/final.txt"
+
+#Data directories for intermediate results
+processed_input_dir = "doc.txt"
+doc_short_dir = "docShort.txt"
+doc_matrix_dir = "docMatrix.csv"
+doc_meta_dir = "docMeta3.txt"
+result_kmeans_dir = "result/kmeans.txt"
+result_matrix_dir = "result/matrix.txt"
+result_ibcf_dir = "result/ibcf.txt"
+result_fpm_dir = "result/fpmISC.RData"
+result_fpmframe_dir = "result/fpmFrame.RData"
+result_fpmIS_dir = "result/fpmIS.RData"
+result_ubcf_dir = "result/ubcf.RData"
 
 #Data preparation---------------------------------------------------
 
-docMetaO <- as.data.frame(read.csv("data/Collaboration.csv")) #every article is created in a group of 4, Collaborators.csv tells us who have worked together before
+docMetaO <- as.data.frame(read.csv(input_collab_dir)) #every article is created in a group of 4, Collaborators.csv tells us who have worked together before
 docMeta <- NULL
 
-doc <- strsplit(scan("data/DocumentWords.csv", what="", sep="\n"), split=",")
+doc <- strsplit(scan(input_words_dir, what="", sep="\n"), split=",")
 for(i in 1:length(doc)) {
   docMeta$docID[i] <- as.numeric(doc[[i]][1])
   docMeta$length[i] <- as.numeric(doc[[i]][2])
@@ -24,7 +48,7 @@ for(i in 1:length(doc)) {
   doc[[i]] <- doc[[i]][-1]
   doc[[i]] <- as.numeric(doc[[i]])
 }
-lapply(doc, write, "doc.txt", append=TRUE, ncolumns=1000)
+lapply(doc, write, processed_input_dir, append=TRUE, ncolumns=1000)
 
 #Display all documents made by one person;
 alonePeople <- c()
@@ -51,7 +75,7 @@ for(i in 1:length(people$sID)) {
 }
 
 #create list of words
-wordO <- read.csv("data/Vocabulary.csv", sep="\n")
+wordO <- read.csv(input_vocab_dir, sep="\n")
 words <- data.frame(matrix(0, ncol=9, nrow=length(wordO[[1]])))
 colnames(words) <- c("order", "words", "count", "IG", "kmeans1", "kmeans2", "kmeans3", "kmeans4", "recno")
 words$words <- wordO[[1]]
@@ -80,7 +104,7 @@ for (i in 1:length(doc)) {
     delindex <- c()
   }
 }
-lapply(doc, write, "docShort.txt", append=TRUE, ncolumns=1000)
+lapply(doc, write, doc_short_dir, append=TRUE, ncolumns=1000)
 
 
 #create binary matrix-------------------------------------------------------------------------
@@ -95,7 +119,7 @@ for (i in 1:length(doc)) {
     }
   }
 }
-write.csv(docMatrix, file="docMatrix.csv", quote=FALSE)
+write.csv(docMatrix, file=doc_matrix_dir, quote=FALSE)
 
 docMatrixPeople <- matrix("", nrow=length(doc), ncol=length(people$sID))
 colnames(docMatrixPeople) <- c(people$sID)
@@ -117,13 +141,13 @@ docMeta$kmeans <- kmeans$cluster
 docKmeans <- matrix(0, nrow=length(doc), ncol=2)
 docKmeans[,1] <- docMeta$docID
 docKmeans[,2] <- docMeta$kmeans
-write.csv(docKmeans[,c(1,2)], "cmpt459_Validation/resultKmeans3.txt", quote=FALSE, row.names=FALSE)
+write.csv(docKmeans[,c(1,2)], result_kmeans_dir, quote=FALSE, row.names=FALSE)
 
-write.csv(docMeta, "docMeta3.txt")
-write.csv(docMeta, "docMeta3IG.txt")
+write.csv(docMeta, doc_meta_dir)
+#write.csv(docMeta, "docMeta3IG.txt")
 
-docMeta <- read.csv("docMeta3.txt")
-docMeta <- read.csv("docMeta3IG.txt")
+docMeta <- read.csv(doc_meta_dir)
+#docMeta <- read.csv("docMeta3IG.txt")
 
 jpeopleMiss <- list()
 jpeopleRepeat <- list() #repeat of 512 and 860 are in cluster 1 20151128
@@ -233,7 +257,7 @@ resultMatrix <- matrix(0, nrow=length(doc), ncol=length(words$words))
 colnames(resultMatrix) <- words$words
 rownames(resultMatrix) <- docMeta$docID
 
-resultIBCF <- read.csv("cmpt741_Validation/resultFinal2.txt", header=FALSE)
+resultIBCF <- read.csv(result_ibcf_dir, header=FALSE)
 for (i in 1:length(resultIBCF[,1])) {
   for(j in 1:5) {
     colNoss <- which(colnames(resultMatrix)==resultIBCF[i,(j+1)])
@@ -243,7 +267,7 @@ for (i in 1:length(resultIBCF[,1])) {
 }
 
 #write.csv(resultMatrix, file=, quote=FALSE)
-resultMatrix <- read.csv("resultMatrix.csv") #with tree
+resultMatrix <- read.csv(result_matrix_dir) #with tree
 colnames(resultMatrix) <- words$words[1:length(resultMatrix[1,])]
 rownames(resultMatrix) <- docMeta$docID
 
@@ -298,8 +322,8 @@ for (i in 1:length(fpmFrameC$items)) {
   fpmISC[[i]] <- strsplit(stringg, split=",")
 }
 
-save(fpmISC, file="fpmISC.RData")
-load("fpmISC.RData")
+save(fpmISC, file=result_fpm_dir)
+load(result_fpm_dir)
 
 #association rules
 fpmFrame <- as(fpm, "data.frame")
@@ -319,10 +343,10 @@ Sys.time()
 fpmFrame$ISindex <- c(1:length(fpmFrame$recItem))
 fpmFrame$rules <- NULL
 
-save(fpmFrame, file="fpmFrame.RData")
-save(fpmIS, file="fpmIS.RData")
-load("fpmFrame.RData")
-load("fpmIS.RData")
+save(fpmFrame, file=result_fpmframe_dir)
+save(fpmIS, file=result_fpmIS_dir)
+load(result_fpmframe_dir)
+load(result_fpmIS_dir)
 
 #keep only lift>3 or support>100
 fpmFrame$ISindex <- c(1:length(fpmFrame$recItem))
@@ -377,7 +401,7 @@ fpmFrame[-unique(delI),]
 
 
 
-load("fpmFrameCDone.RData")
+# load("fpmFrameCDone.RData")
 
 countOfRecItems <- c()
 for (i in 1:length(unique(fpmFrame$recItem))) {
@@ -467,52 +491,48 @@ docMeta4 <- docMeta[which(docMeta$kmeans==4),]
 
 
 
-docMeta$recno <- 0 #***
-docFPG <- scan("docFPG.txt", what="", sep="\n") #***
-docFPG <- strsplit(docFPG, split="," )
-docFPGfreq <- as.data.frame(0)
-for (i in 1:length(docFPG)) {
-  docFPGfreq[i,1] <- i #number the itemsets
-  docFPGfreq[i,2] <- as.numeric( docFPG[[i]][length(docFPG[[i]])] ) #frequency of itemset
-  docFPG[[i]] <- as.numeric(docFPG[[i]][1:(length(docFPG[[i]])-1)])
-}
-docFPGfreq <- docFPGfreq[order(-docFPGfreq[,2]), ] #order itemsets by frequency
-docFPGitems <- as.list(0) #order itemsets by frequency
-for(i in 1:length(docFPG)) {
-  docFPGitems[[i]] <- docFPG[[docFPGfreq[i,1]]]
-}
-result <- as.data.frame(matrix(0, nrow=length(doc), ncol=30)) #***
-for (i in 1:length(doc)) { #***
-  result1[i,1] <- docMeta$docID[i] #***2
-  docneeds <- c()
-  for (j in 1:length(docFPGitems)) {
-    #1 itemset, leave only missing values
-    for (k in 1:length(docFPGitems[[j]])) { # if item of itemset isn't already in doc, keep it as rec
-      if (length(which(doc[[i]] == docFPGitems[[j]][k])) == 0) { #*** 
-        docneeds <- append(docneeds, docFPGitems[[j]])
-      }
-    }
-    #if doc has some items from this itemset, then put rest of itemset as recommendation
-    if (length(docneeds) < length(docFPGitems[[j]])) {
-      for (k in 1:length(docneeds)) {
-        if (length(which(result[i,] == docneeds[k])) == 0) { #*** add recommendation to result if not already there
-          docMeta$recno[i] <- docMeta$recno[i]+1 #***2 increment recommendation#
-          result[i,docMeta$recno[i]+1] <- docneeds[k] #***2
-        }
-      }
-    }
-  }
-}
+# docMeta$recno <- 0 #***
+# docFPG <- scan("docFPG.txt", what="", sep="\n") #***
+# docFPG <- strsplit(docFPG, split="," )
+# docFPGfreq <- as.data.frame(0)
+# for (i in 1:length(docFPG)) {
+#   docFPGfreq[i,1] <- i #number the itemsets
+#   docFPGfreq[i,2] <- as.numeric( docFPG[[i]][length(docFPG[[i]])] ) #frequency of itemset
+#   docFPG[[i]] <- as.numeric(docFPG[[i]][1:(length(docFPG[[i]])-1)])
+# }
+# docFPGfreq <- docFPGfreq[order(-docFPGfreq[,2]), ] #order itemsets by frequency
+# docFPGitems <- as.list(0) #order itemsets by frequency
+# for(i in 1:length(docFPG)) {
+#   docFPGitems[[i]] <- docFPG[[docFPGfreq[i,1]]]
+# }
+# result <- as.data.frame(matrix(0, nrow=length(doc), ncol=30)) #***
+# for (i in 1:length(doc)) { #***
+#   result1[i,1] <- docMeta$docID[i] #***2
+#   docneeds <- c()
+#   for (j in 1:length(docFPGitems)) {
+#     #1 itemset, leave only missing values
+#     for (k in 1:length(docFPGitems[[j]])) { # if item of itemset isn't already in doc, keep it as rec
+#       if (length(which(doc[[i]] == docFPGitems[[j]][k])) == 0) { #*** 
+#         docneeds <- append(docneeds, docFPGitems[[j]])
+#       }
+#     }
+#     #if doc has some items from this itemset, then put rest of itemset as recommendation
+#     if (length(docneeds) < length(docFPGitems[[j]])) {
+#       for (k in 1:length(docneeds)) {
+#         if (length(which(result[i,] == docneeds[k])) == 0) { #*** add recommendation to result if not already there
+#           docMeta$recno[i] <- docMeta$recno[i]+1 #***2 increment recommendation#
+#           result[i,docMeta$recno[i]+1] <- docneeds[k] #***2
+#         }
+#       }
+#     }
+#   }
+# }
 
 #Association Recommender----------------------------------------------------------------------------
-
-install.packages("recommenderlab")
-library("recommenderlab")
 
 recommenderRegistry$get_entries(dataType = "binaryRatingMatrix")
 
 rMatrixAns <- as(ansMatrix, "binaryRatingMatrix")
-
 
 docMatrix <- cbind(docMatrix,docMeta$kmeans)
 docMatrix <- docMatrix[,-length(docMatrix[1,])]
@@ -531,8 +551,8 @@ for (i in 1:nrow(rMatrix)) {
   }
   cat(i, "\n", sep="")
 }
-save(resultMatrix, file="resultMatrixUBCF.RData")
-load("resultMatrixUBCF.RData")
+save(resultMatrix, file=result_ubcf_dir)
+load(result_ubcf_dir)
 
 #seperate clusters
 for (cluster in 1:4) {
@@ -679,4 +699,4 @@ for (i in 1:length(doc)) {
   }
 }
 
-write.csv(resultFinal, "cmpt741_Validation/301196607.txt", row.names=FALSE, quote=FALSE)
+write.csv(resultFinal, result_final_dir, row.names=FALSE, quote=FALSE)
